@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "build",
+			"command": "g++",
+			"args": [
+				"-std=c++11",
+				"main.cpp",
+				"-o",
+				"main"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "run",
+			"type": "shell",
+			"command": "./main",
+			"dependsOn": [
+				"build"
+			],
+			"problemMatcher": []
+		}
+	]
+}
