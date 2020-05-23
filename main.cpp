@@ -6,6 +6,8 @@
 #include <string>  
 #include <sstream>
 #include <map>
+#include <stdlib.h> 
+#include <time.h>
 
 using namespace std;
 
@@ -185,7 +187,11 @@ int main() {
 
     }
 
-    vector<vector<int>> all_paths = {cube.dim_order_routing(1,13),cube.dim_order_routing(1,5)};
+    vector<vector<int>> all_paths;
+    srand(time(NULL));
+    for(int i = 0; i<2000; ++i){
+        all_paths.push_back(cube.dim_order_routing(rand()%32,rand()%32));
+    }
     double bw = cube.bottleneckEstimate(all_paths,1000000000);
     std::cout<<bw<<endl;
 
