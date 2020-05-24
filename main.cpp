@@ -9,6 +9,7 @@
 #include <stdlib.h> 
 #include <time.h>
 #include <fstream>
+#include <limits>
 
 using namespace std;
 
@@ -127,7 +128,7 @@ class Hypercube{
                 bw: bandwidth of links
 
             Returns:
-                through: throughput through bottleneck link
+                data_rate: throughput through bottleneck link for each path
             */
 
            map<vector<int>,int> links;
@@ -151,19 +152,20 @@ class Hypercube{
            return data_rate;
         }
 
-        void simulateFlow(string filename){
+        void simulateFlow(string fileread,string filewrite){
             /*
             Perform a flow-level simulation of hypercube network with dimensional-order
             routing.
 
             Args:
-                filename: text file containing tasks to be simulated
+                fileread: text file containing tasks to be simulated
+                filewrite: text file to write results to
 
             Returns:
                 none
             */
 
-            ifstream msgs(filename);
+            ifstream msgs(fileread);
             string line;
             vector<vector<int>> nodes;
             if(msgs.is_open()){
@@ -184,17 +186,57 @@ class Hypercube{
                 }
                 msgs.close();
                 map<int,int> times;
-                vector<vector<int>> act_paths;
+                map<int,vector<int>> act_paths;
                 map<int,double> progress;
                 int counter = 0;
-                for(int t = 0; t < 6500000; ++t){
+                bool hasChanged = true;
+                vector<double> rates;
+                int t = 0;
+                while(times.size() < nodes.size()){
                     if(t == nodes[counter][3]){
                         vector<int> path  = this->dim_order_routing(nodes[counter][0],nodes[counter][1]);
                         progress[counter] = 0;
-                        act_paths.push_back(path);
-                        ++counter;
+                        act_paths[counter] = path;
+                        hasChanged = true;
+                        if(counter < nodes.size()-1){
+                            ++counter;
+                        }
                     }
+                    if(hasChanged){
+                        vector<vector<int>> p;
+                        for(auto it = act_paths.begin(); it != act_paths.end(); ++it){
+                            p.push_back(it->second);
+                        }
+                        rates = this->bottleneckEstimate(p,1e9);
+                        hasChanged = false;
+                    }
+                    int c = 0;
+                    for(auto& p: progress){
+                        p.second += rates[c]*1.0e-9;
+                        if(p.second >= nodes[p.first][2]){
+                            int k = p.first;
+                            times[k] = t;
+                            hasChanged = true;
+                            if(progress.size() == 1){
+                                act_paths.erase(k);
+                                progress.erase(k);
+                                break;
+                            }
+                            act_paths.erase(k);
+                            progress.erase(k);
+                        }
+                        ++c;
+                    }
+                    ++t;
                 }
+                ofstream out (filewrite);
+                for(int i = 0; i < nodes.size(); ++i){
+                    for(int j = 0; j < 4; ++j){
+                        out << nodes[i][j] << ' ';
+                    }
+                    out << times[i] << '\n';
+                }
+                out.close();
             }
             else{
                 cout << "unable to open file" << endl;
@@ -203,7 +245,7 @@ class Hypercube{
 };
 
 int main() {
-    Hypercube cube(5);
+    Hypercube cube(6);
     //cube.printEdges();
     vector<int> path = cube.dim_order_routing(1,13);
     std::cout<<'(';
@@ -248,12 +290,12 @@ int main() {
     for(int i = 0; i<100; ++i){
         all_paths.push_back(cube.dim_order_routing(rand()%32,rand()%32));
     }
-    vector<double> rates = cube.bottleneckEstimate(all_paths,1000000000);
+    /*vector<double> rates = cube.bottleneckEstimate(all_paths,1000000000);
     for (int i = 0; i < rates.size(); ++i){
         cout << rates[i] << endl;
-    }
+    }*/
 
-    //cube.simulateFlow("Data/d1.txt");
+    cube.simulateFlow("Data/d1.txt","Data/d1_out.txt");
 
     return 0;
 }
