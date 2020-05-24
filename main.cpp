@@ -8,6 +8,7 @@
 #include <map>
 #include <stdlib.h> 
 #include <time.h>
+#include <fstream>
 
 using namespace std;
 
@@ -117,7 +118,7 @@ class Hypercube{
 
         }
 
-        double bottleneckEstimate(vector<vector<int>> paths,double bw){
+        vector<double> bottleneckEstimate(vector<vector<int>> paths,double bw){
             /*
             Calculate maximum throughput of a flow with bottleneck estimation
 
@@ -129,20 +130,75 @@ class Hypercube{
                 through: throughput through bottleneck link
             */
 
-           std::map<vector<int>,int> links;
+           map<vector<int>,int> links;
+           vector<double> data_rate;
            for(int i = 0; i < paths.size(); ++i){
                for(int j = 0; j<paths[i].size()-1;++j){
                    std::vector<int> link = {paths[i][j],paths[i][j+1]};
                    ++links[link];
                }
            }
-           int max_usage = 0;
-           for(auto it = links.begin(); it != links.end(); ++it){
-               if(it->second > max_usage){
-                   max_usage = it->second;
+
+           for(int i =0; i < paths.size(); ++i){
+                int max_usage = 0;
+                for(int j = 0; j < paths[i].size()-1; ++j){
+                    if(links[{paths[i][j],paths[i][j+1]}] > max_usage){
+                        max_usage = links[{paths[i][j],paths[i][j+1]}];
+                    }
                }
+               data_rate.push_back(bw/max_usage);
            }
-           return bw/max_usage;
+           return data_rate;
+        }
+
+        void simulateFlow(string filename){
+            /*
+            Perform a flow-level simulation of hypercube network with dimensional-order
+            routing.
+
+            Args:
+                filename: text file containing tasks to be simulated
+
+            Returns:
+                none
+            */
+
+            ifstream msgs(filename);
+            string line;
+            vector<vector<int>> nodes;
+            if(msgs.is_open()){
+                while(getline(msgs,line)){
+                    string entry = "";
+                    vector<int> node;
+                    for(auto i : line){
+                        if(i == ' '){
+                            node.push_back(stoi(entry));
+                            entry = "";
+                        }
+                        else{
+                            entry = entry + i;
+                        }
+                    }
+                    node.push_back(stoi(entry));
+                    nodes.push_back(node);
+                }
+                msgs.close();
+                map<int,int> times;
+                vector<vector<int>> act_paths;
+                map<int,double> progress;
+                int counter = 0;
+                for(int t = 0; t < 6500000; ++t){
+                    if(t == nodes[counter][3]){
+                        vector<int> path  = this->dim_order_routing(nodes[counter][0],nodes[counter][1]);
+                        progress[counter] = 0;
+                        act_paths.push_back(path);
+                        ++counter;
+                    }
+                }
+            }
+            else{
+                cout << "unable to open file" << endl;
+            }
         }
 };
 
@@ -189,11 +245,15 @@ int main() {
 
     vector<vector<int>> all_paths;
     srand(time(NULL));
-    for(int i = 0; i<2000; ++i){
+    for(int i = 0; i<100; ++i){
         all_paths.push_back(cube.dim_order_routing(rand()%32,rand()%32));
     }
-    double bw = cube.bottleneckEstimate(all_paths,1000000000);
-    std::cout<<bw<<endl;
+    vector<double> rates = cube.bottleneckEstimate(all_paths,1000000000);
+    for (int i = 0; i < rates.size(); ++i){
+        cout << rates[i] << endl;
+    }
+
+    //cube.simulateFlow("Data/d1.txt");
 
     return 0;
 }
